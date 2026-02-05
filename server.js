@@ -110,35 +110,35 @@ app.post("/api/create-preference", async (req, res) => {
     saveDb(db);
 
     const preference = {
-      items: [
-        {
-          title: "Reserva San Valentín - Botánico (turno único 21:00)",
-          quantity: 1,
-          currency_id: "ARS",
-          unit_price: amount
-        }
-      ],
-      back_urls: {
-        success: `${BASE_URL}/resultado.html`,
-        pending: `${BASE_URL}/resultado.html`,
-        failure: `${BASE_URL}/resultado.html`
-      },
-      // Cuando uses HTTPS (ngrok o deploy) podés activar:
-      auto_return: "approved",
-      external_reference: externalRef,
-      metadata: {
-        external_reference: externalRef,
-        fullName: String(fullName).trim(),
-        email: String(email).trim(),
-        phone: String(phone).trim(),
-        adults: a,
-        kids: k,
-        total_people: totalPeople,
-        price_per_person: PRICE_PER_PERSON,
-        event: "san_valentin",
-        shift: "21:00"
-      }
-    };
+  items: [
+    {
+      title: "Reserva San Valentín - Botánico (turno único 21:00)",
+      quantity: 1,
+      currency_id: "ARS",
+      unit_price: amount
+    }
+  ],
+  back_urls: {
+    success: `${BASE_URL}/resultado.html`,
+    pending: `${BASE_URL}/resultado.html`,
+    failure: `${BASE_URL}/resultado.html`
+  },
+  auto_return: "approved",
+  external_reference: externalRef,
+  metadata: {
+    external_reference: externalRef,
+    fullName: String(fullName).trim(),
+    email: String(email).trim(),
+    phone: String(phone).trim(),
+    adults: a,
+    kids: k,
+    total_people: totalPeople,
+    price_per_person: PRICE_PER_PERSON,
+    event: "san_valentin",
+    shift: "21:00"
+  }
+};
+
 
     const resp = await axios.post(
       "https://api.mercadopago.com/checkout/preferences",
