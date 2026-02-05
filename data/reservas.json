@@ -1,0 +1,55 @@
+{
+  "reservas": [
+    {
+      "external_reference": "BOTANICO-SV-1770320885903",
+      "created_at": "2026-02-05T19:48:05.904Z",
+      "status": "pending",
+      "fullName": "Maria G Antonini",
+      "email": "julimilicaceres@gmail.com",
+      "phone": "+542995807422",
+      "adults": 1,
+      "kids": 0,
+      "total_people": 1,
+      "amount": 1
+    },
+    {
+      "external_reference": "BOTANICO-SV-1770321786173",
+      "created_at": "2026-02-05T20:03:06.173Z",
+      "status": "pending",
+      "fullName": "Maria G Antonini",
+      "email": "julimilicaceres@gmail.com",
+      "phone": "+542995807422",
+      "adults": 1,
+      "kids": 0,
+      "total_people": 1,
+      "amount": 1
+    },
+    {
+      "external_reference": "BOTANICO-SV-1770322145806",
+      "created_at": "2026-02-05T20:09:05.806Z",
+      "status": "pending",
+      "fullName": "Maria G Antonini",
+      "email": "julimilicaceres@gmail.com",
+      "phone": "+542995807422",
+      "adults": 1,
+      "kids": 0,
+      "total_people": 1,
+      "amount": 1
+    },
+    {
+      "external_reference": "BOTANICO-SV-1770322395390",
+      "created_at": "2026-02-05T20:13:15.390Z",
+      "status": "approved",
+      "fullName": "Maria G Antonini",
+      "email": "julimilicaceres@gmail.com",
+      "phone": "+542995807422",
+      "adults": 1,
+      "kids": 0,
+      "total_people": 1,
+      "amount": 1,
+      "mp_payment_id": "144284874051",
+      "mp_status": "approved",
+      "approved_at": "2026-02-05T20:16:51.771Z"
+    }
+  ]
+}

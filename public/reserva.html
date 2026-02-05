@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Botánico — Reserva</title>
+  <link rel="stylesheet" href="./css/styles1.css" />
+</head>
+<body class="bg-soft">
+  <aside class="brand-rail">
+    <a class="brand-back" href="./index1.html">←</a>
+    <img class="brand-logo" src="./assets/logo-botanico.jpg" alt="Botánico" />
+  </aside>
+
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <div class="script">Botanico</div>
+        <h1 class="title">Reserva</h1>
+        <p class="subtitle">21:00 · Tolerancia 15 minutos</p>
+        <p class="subtitle">Al momento de la reserva se abona una seña de $30.000 por persona,
+        la cual será descontada del total de la cuenta el día del evento.
+        En caso de cancelación o no presentación, la seña no será reembolsable.
+        <br>
+        <br>
+        Entradas, principal y postre a elección dentro del menú establecido.
+        Incluye botella de vino cada dos personas y una bebida sin alcohol.</p>
+      </div>
+    </header>
+
+    <section class="card form-card">
+      <div class="card-head">
+        <h2 class="h2">Cantidad de comensales</h2>
+        <p class="muted">Valor por persona · $30.000 ARS</p>
+      </div>
+
+      <form id="reserveForm" class="form">
+        <label class="field">
+          <span>Nombre y apellido</span>
+          <input id="fullName" type="text" autocomplete="name" />
+        </label>
+
+        <label class="field">
+          <span>Email</span>
+          <input id="email" type="email" autocomplete="email" />
+        </label>
+
+        <label class="field">
+          <span>Teléfono</span>
+          <input id="phone" type="tel" autocomplete="tel" />
+        </label>
+
+        <div class="grid-2">
+          <label class="field">
+            <span>Adultos</span>
+            <input id="adults" type="number" min="0" value="2" inputmode="numeric" />
+          </label>
+
+          <label class="field">
+            <span>Niños</span>
+            <input id="kids" type="number" min="0" value="0" inputmode="numeric" />
+          </label>
+        </div>
+
+        <div class="summary">
+          <div class="summary-row">
+  <span>Total de personas</span>
+  <span id="totalPeople" class="summary-value">2</span>
+      </div>
+      <div class="summary-row">
+        <span>Total a pagar</span>
+        <span id="totalAmount" class="summary-value">$ 60.000</span>
+      </div>
+      </div>
+
+      </div>
+
+        <button class="btn btn-primary btn-wide" type="submit" id="payBtn">
+          Pagar y confirmar reserva
+        </button>
+
+        <p class="tiny" id="errorBox" style="display:none;"></p>
+      </form>
+    </section>
+
+    <footer class="footer">
+      <span>© Botánico</span><span class="dot">•</span><span>San Valentín</span>
+    </footer>
+  </main>
+
+  <script src="./js/reserva.js"></script>
+</body>
+</html>

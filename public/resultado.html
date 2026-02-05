@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Botánico — Confirmación</title>
+  <link rel="stylesheet" href="./css/styles1.css" />
+</head>
+
+<body class="bg-soft">
+  <aside class="brand-rail">
+    <a class="brand-back" href="./index1.html">←</a>
+    <img class="brand-logo" src="./assets/logo-botanico.jpg" alt="Botánico" />
+  </aside>
+
+  <main class="shell">
+    <section class="card status-card">
+      <div class="card-head">
+        <h1 class="title" id="statusTitle" style="margin-top:0;">Confirmación</h1>
+        <p class="subtitle" id="statusText">Procesando…</p>
+      </div>
+
+      <div style="padding: 0 22px 22px;">
+        <a class="btn btn-ghost" href="./index1.html">Volver al inicio</a>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>© Botánico</span><span class="dot">•</span><span>San Valentín</span>
+    </footer>
+  </main>
+
+  <script>
+    const qs = new URLSearchParams(location.search);
+
+    // MP puede mandar status en diferentes nombres
+    const status =
+      (qs.get("status") || qs.get("collection_status") || "").toLowerCase();
+
+    const paymentId = qs.get("payment_id") || qs.get("collection_id");
+    const title = document.getElementById("statusTitle");
+    const text = document.getElementById("statusText");
+
+    function setApproved() {
+      title.textContent = "Reserva confirmada";
+      text.textContent = "Pago aprobado. La confirmación fue enviada por correo.";
+    }
+    function setPending() {
+      title.textContent = "Pago pendiente";
+      text.textContent = "Tu pago quedó pendiente. Apenas se acredite, se confirmará la reserva.";
+    }
+    function setFailure() {
+      title.textContent = "Pago rechazado / cancelado";
+      text.textContent = "No se pudo confirmar el pago. Podés intentar nuevamente desde la página de reserva.";
+    }
+    function setVerifying() {
+      title.textContent = "Reserva en verificación";
+      text.textContent = "Estamos confirmando el pago. Si no recibís el correo, contactanos.";
+    }
+
+    async function confirmWithServer() {
+      if (!paymentId) return null;
+
+      // Dispara el envío de mails cuando el pago está approved
+      const r = await fetch(`/api/confirm?payment_id=${encodeURIComponent(paymentId)}`);
+      return await r.json();
+    }
+
+    (async () => {
+      // Primero, mostramos algo coherente SOLO con la URL (para UX)
+      if (status === "approved") setApproved();
+      else if (status === "pending" || status === "in_process") setPending();
+      else if (status) setFailure();
+      else setVerifying();
+
+      // Segundo: confirmamos con el server (para mails y verdad final)
+      try {
+        const data = await confirmWithServer();
+        if (!data) return;
+
+        const finalStatus = (data.status || status || "").toLowerCase();
+
+        if (finalStatus === "approved") setApproved();
+        else if (finalStatus === "pending" || finalStatus === "in_process") setPending();
+        else setFailure();
+      } catch (e) {
+        // Si falla el server, NO mostramos cancelado si MP dice approved
+        if (status === "approved") setApproved();
+        else setVerifying();
+      }
+    })();
+  </script>
+</body>
+</html>
