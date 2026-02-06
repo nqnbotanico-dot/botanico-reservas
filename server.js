@@ -114,9 +114,6 @@ app.get("/api/test-email", async (req, res) => {
     const to = String(req.query.to || "").trim();
     const restaurantEmail = String(process.env.RESTAURANT_EMAIL || "").trim();
 
-    if (!process.env.RESEND_API_KEY) {
-      return res.status(500).json({ ok: false, error: "Falta RESEND_API_KEY en Railway" });
-    }
     if (!to) {
       return res.status(400).json({
         ok: false,
@@ -128,22 +125,21 @@ app.get("/api/test-email", async (req, res) => {
       return res.status(500).json({ ok: false, error: "Falta RESTAURANT_EMAIL en Railway" });
     }
 
-    const result = await sendEmails({
+    await sendEmails({
       customerEmail: to,
       restaurantEmail,
       subjectCustomer: "Botánico · Test email cliente",
-      htmlCustomer: `<p>Test cliente enviado a: <b>${to}</b></p>`,
+      htmlCustomer: `<p>Este mail fue enviado a: <b>${to}</b></p>`,
       subjectRestaurant: "Botánico · Test email restaurante",
-      htmlRestaurant: `<p>Test restaurante enviado a: <b>${restaurantEmail}</b></p>`
+      htmlRestaurant: `<p>Test restaurante enviado correctamente.</p>`
     });
 
-    return res.json({ ok: true, sent_to: to, restaurant: restaurantEmail, result });
+    return res.json({ ok: true, sent_to: to, restaurant: restaurantEmail });
   } catch (err) {
-    console.error("TEST EMAIL ERROR:", err?.response?.data || err.message);
+    console.error("TEST EMAIL ERROR:", err.message);
     return res.status(500).json({
       ok: false,
-      error: err.message,
-      details: err?.response?.data || null
+      error: err.message
     });
   }
 });
