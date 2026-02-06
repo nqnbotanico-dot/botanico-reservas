@@ -339,6 +339,24 @@ app.get("/api/test-email", async (req, res) => {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
+function printRoutes(app) {
+  const routes = [];
+  const stack = app?._router?.stack || app?.router?.stack || [];
+  for (const layer of stack) {
+    if (layer?.route?.path) {
+      const methods = Object.keys(layer.route.methods || {})
+        .map(m => m.toUpperCase())
+        .join(",");
+      routes.push(`${methods} ${layer.route.path}`);
+    }
+  }
+  console.log("ROUTES:", routes);
+}
+app.get("/ping", (req, res) => res.send("pong"));
+
+// ✅ dejalo justo antes del listen
+printRoutes(app);
+
 
 // ---------- Start ----------
 const port = process.env.PORT || 3000;
