@@ -59,7 +59,6 @@ app.get("/api/availability", (req, res) => {
   res.json({ remaining, max: MAX_RESERVAS });
 });
 
-import nodemailer from "nodemailer";
 
 function mailer() {
   return nodemailer.createTransport({
