@@ -137,50 +137,58 @@
     </div>
   </div>
 
-  <script>
-    const qs = new URLSearchParams(location.search);
-    const status = (qs.get("status") || qs.get("collection_status") || "").toLowerCase();
-    const external = qs.get("external_reference") || "";
+ <script>
+  const qs = new URLSearchParams(location.search);
+  const status = (qs.get("status") || qs.get("collection_status") || "").toLowerCase();
+  const external = qs.get("external_reference") || "";
 
-    const fullName = localStorage.getItem("bot_fullName") || "";
-    const adults = Number(localStorage.getItem("bot_adults") || 0);
-    const kids = Number(localStorage.getItem("bot_kids") || 0);
-    const total = adults + kids;
+  const statusTitle = document.getElementById("statusTitle");
+  const statusDesc  = document.getElementById("statusDesc");
+  const details     = document.getElementById("details");
 
-    const statusTitle = document.getElementById("statusTitle");
-    const statusDesc = document.getElementById("statusDesc");
-    const details = document.getElementById("details");
+  async function loadReservaAndWhatsapp() {
+    if (!external) return;
 
-    if (status === "approved") {
-      statusTitle.textContent = "Reserva confirmada";
-      statusDesc.textContent =
-        "Tu lugar para la noche de San Valentín ha sido reservado correctamente.";
+    // 1) Traer datos reales de la reserva (nombre + comensales)
+    const r = await fetch(`/api/reserva?external_reference=${encodeURIComponent(external)}`);
+    const j = await r.json();
+
+    if (j.ok && j.reserva) {
+      const { fullName, adults, kids, total_people } = j.reserva;
 
       document.getElementById("dName").textContent =
         fullName ? `Nombre: ${fullName}` : "";
+
       document.getElementById("dPeople").textContent =
-        total ? `Comensales: ${total} (Adultos ${adults} · Niños ${kids})` : "";
+        `Comensales: ${total_people} (Adultos ${adults} · Niños ${kids})`;
 
       details.classList.remove("hidden");
 
-      fetch(`/api/whatsapp-link?fullName=${encodeURIComponent(fullName)}&adults=${adults}&kids=${kids}&total=${total}&external_reference=${encodeURIComponent(external)}`)
-        .then(r => r.json())
-        .then(j => {
-          if (j.ok && j.url) {
-            document.getElementById("waBtn").href = j.url;
-            document.getElementById("waWrap").classList.remove("hidden");
-          }
-        });
-    } else if (status === "pending") {
-      statusTitle.textContent = "Pago pendiente";
-      statusDesc.textContent =
-        "Tu pago está siendo procesado. En cuanto se confirme, tu reserva quedará registrada.";
-    } else {
-      statusTitle.textContent = "No se pudo completar el pago";
-      statusDesc.textContent =
-        "El pago no fue aprobado. Podés intentar nuevamente o contactarnos.";
+      // 2) Armar link de WhatsApp con datos reales
+      const wa = await fetch(
+        `/api/whatsapp-link?fullName=${encodeURIComponent(fullName)}&adults=${adults}&kids=${kids}&total=${total_people}&external_reference=${encodeURIComponent(external)}`
+      );
+      const wj = await wa.json();
+      if (wj.ok && wj.url) {
+        document.getElementById("waBtn").href = wj.url;
+        document.getElementById("waWrap").classList.remove("hidden");
+      }
     }
-  </script>
+  }
+
+  if (status === "approved") {
+    statusTitle.textContent = "Reserva confirmada";
+    statusDesc.textContent = "Tu lugar para la noche de San Valentín ha sido reservado correctamente.";
+    loadReservaAndWhatsapp();
+  } else if (status === "pending") {
+    statusTitle.textContent = "Pago pendiente";
+    statusDesc.textContent = "Tu pago está siendo procesado. En cuanto se confirme, tu reserva quedará registrada.";
+  } else {
+    statusTitle.textContent = "No se pudo completar el pago";
+    statusDesc.textContent = "El pago no fue aprobado. Podés intentar nuevamente o contactarnos.";
+  }
+</script>
+
 
 </body>
 </html>
