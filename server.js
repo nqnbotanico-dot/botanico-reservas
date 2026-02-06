@@ -103,48 +103,6 @@ async function sendEmails({
 }
 
 
-/**
- * TEST EMAIL (SIN PAGAR)
- * Obligatorio pasar ?to= para evitar confusión.
- * Ejemplo:
- * /api/test-email?to=tu_mail@gmail.com
- */
-app.get("/api/test-email", async (req, res) => {
-  try {
-    const to = String(req.query.to || "").trim();
-    const restaurantEmail = String(process.env.RESTAURANT_EMAIL || "").trim();
-
-    if (!to) {
-      return res.status(400).json({
-        ok: false,
-        error: "Falta el parámetro ?to=",
-        example: "/api/test-email?to=tu_mail@gmail.com"
-      });
-    }
-    if (!restaurantEmail) {
-      return res.status(500).json({ ok: false, error: "Falta RESTAURANT_EMAIL en Railway" });
-    }
-
-    await sendEmails({
-      customerEmail: to,
-      restaurantEmail,
-      subjectCustomer: "Botánico · Test email cliente",
-      htmlCustomer: `<p>Este mail fue enviado a: <b>${to}</b></p>`,
-      subjectRestaurant: "Botánico · Test email restaurante",
-      htmlRestaurant: `<p>Test restaurante enviado correctamente.</p>`
-    });
-
-    return res.json({ ok: true, sent_to: to, restaurant: restaurantEmail });
-  } catch (err) {
-    console.error("TEST EMAIL ERROR:", err.message);
-    return res.status(500).json({
-      ok: false,
-      error: err.message
-    });
-  }
-});
-
-
 // ---------- Mercado Pago: create preference ----------
 app.post("/api/create-preference", async (req, res) => {
   try {
@@ -353,6 +311,32 @@ app.get("/api/confirm", async (req, res) => {
       detail: mpError || err.message
     });
   }
+});
+
+app.get("/api/whatsapp-link", (req, res) => {
+  const phone = String(process.env.RESTAURANT_WA || "").trim();
+  if (!phone) return res.status(500).json({ ok: false, error: "Falta RESTAURANT_WA en Railway" });
+
+  const fullName = String(req.query.fullName || "").trim();
+  const total = String(req.query.total || "").trim();
+  const adults = String(req.query.adults || "").trim();
+  const kids = String(req.query.kids || "").trim();
+  const external = String(req.query.external_reference || "").trim();
+
+  const lines = [
+    "Botánico — Reserva confirmada ✅",
+    "",
+    fullName ? `Nombre: ${fullName}` : null,
+    total ? `Comensales: ${total} (Adultos ${adults || "0"} · Niños ${kids || "0"})` : null,
+    "Turno único: 21:00",
+    "Tolerancia máxima: 15 minutos",
+    external ? `Código: ${external}` : null
+  ].filter(Boolean);
+
+  const text = encodeURIComponent(lines.join("\n"));
+  const url = `https://wa.me/${phone}?text=${text}`;
+
+  res.json({ ok: true, url });
 });
 
 // ---------- Start ----------
