@@ -2,11 +2,9 @@ import express from "express";
 import axios from "axios";
 import dotenv from "dotenv";
 import fs from "fs";
-import nodemailer from "nodemailer";
 import path from "path";
 import { fileURLToPath } from "url";
 import { Resend } from "resend";
-
 
 dotenv.config();
 
@@ -17,14 +15,13 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 
-// Config
-const PRICE_PER_PERSON = Number(process.env.PRICE_PER_PERSON || 1); // para test: $1
-const MAX_RESERVAS = Number(process.env.MAX_RESERVAS || 30);
+// ---------- Config ----------
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
+const PRICE_PER_PERSON = Number(process.env.PRICE_PER_PERSON || 30000);
+const MAX_RESERVAS = Number(process.env.MAX_RESERVAS || 30);
 
-
-// DB (JSON)
-const DATA_DIR = path.join(__dirname, "data");
+// Persistencia (Railway Volume recomendado: DATA_DIR=/data)
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const DATA_FILE = path.join(DATA_DIR, "reservas.json");
 
 function ensureDb() {
@@ -44,22 +41,85 @@ function confirmedCount(db) {
   return db.reservas.filter((r) => r.status === "approved").length;
 }
 
-// Static
+// ---------- Static ----------
 app.use(express.static(path.join(__dirname, "public")));
 
-// Home -> index1.html
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index1.html"));
 });
 
-// Availability
+// ---------- Availability ----------
 app.get("/api/availability", (req, res) => {
   const db = loadDb();
   const remaining = Math.max(0, MAX_RESERVAS - confirmedCount(db));
   res.json({ remaining, max: MAX_RESERVAS });
 });
 
-// Create preference
+// ---------- Email (Resend) ----------
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+async function sendEmails({
+  customerEmail,
+  restaurantEmail,
+  subjectCustomer,
+  htmlCustomer,
+  subjectRestaurant,
+  htmlRestaurant
+}) {
+  const fromName = process.env.MAIL_FROM_NAME || "Botánico";
+  const fromEmail = process.env.MAIL_FROM_EMAIL || "onboarding@resend.dev";
+  const from = `${fromName} <${fromEmail}>`;
+
+  // Cliente
+  await resend.emails.send({
+    from,
+    to: [customerEmail],
+    subject: subjectCustomer,
+    html: htmlCustomer
+  });
+
+  // Restaurante
+  await resend.emails.send({
+    from,
+    to: [restaurantEmail],
+    subject: subjectRestaurant,
+    html: htmlRestaurant
+  });
+}
+
+// Endpoint para probar mails sin pagar
+app.get("/api/test-email", async (req, res) => {
+  try {
+    console.log("TEST EMAIL: start");
+
+    const to = req.query.to || process.env.RESTAURANT_EMAIL;
+    const restaurantEmail = process.env.RESTAURANT_EMAIL;
+
+    if (!to) return res.status(400).json({ ok: false, error: "Falta ?to= o RESTAURANT_EMAIL" });
+    if (!restaurantEmail) return res.status(400).json({ ok: false, error: "Falta RESTAURANT_EMAIL" });
+
+    await sendEmails({
+      customerEmail: to,
+      restaurantEmail,
+      subjectCustomer: "Botánico · Test email cliente",
+      htmlCustomer: "<p>Email de prueba enviado correctamente.</p>",
+      subjectRestaurant: "Botánico · Test email restaurante",
+      htmlRestaurant: "<p>Email de prueba enviado correctamente.</p>"
+    });
+
+    console.log("TEST EMAIL: sent OK");
+    res.json({ ok: true, sent_to: to, restaurant: restaurantEmail });
+  } catch (err) {
+    console.error("TEST EMAIL ERROR:", err?.response?.data || err.message);
+    res.status(500).json({
+      ok: false,
+      error: err.message,
+      details: err?.response?.data || null
+    });
+  }
+});
+
+// ---------- Mercado Pago: create preference ----------
 app.post("/api/create-preference", async (req, res) => {
   try {
     const { adults, kids, fullName, email, phone } = req.body;
@@ -97,7 +157,7 @@ app.post("/api/create-preference", async (req, res) => {
     const amount = totalPeople * PRICE_PER_PERSON;
     const externalRef = `BOTANICO-SV-${Date.now()}`;
 
-    // Guardamos pending
+    // Guardamos como pending
     db.reservas.push({
       external_reference: externalRef,
       created_at: new Date().toISOString(),
@@ -113,35 +173,34 @@ app.post("/api/create-preference", async (req, res) => {
     saveDb(db);
 
     const preference = {
-  items: [
-    {
-      title: "Reserva San Valentín - Botánico (turno único 21:00)",
-      quantity: 1,
-      currency_id: "ARS",
-      unit_price: amount
-    }
-  ],
-  back_urls: {
-    success: `${BASE_URL}/resultado.html`,
-    pending: `${BASE_URL}/resultado.html`,
-    failure: `${BASE_URL}/resultado.html`
-  },
-  auto_return: "approved",
-  external_reference: externalRef,
-  metadata: {
-    external_reference: externalRef,
-    fullName: String(fullName).trim(),
-    email: String(email).trim(),
-    phone: String(phone).trim(),
-    adults: a,
-    kids: k,
-    total_people: totalPeople,
-    price_per_person: PRICE_PER_PERSON,
-    event: "san_valentin",
-    shift: "21:00"
-  }
-};
-
+      items: [
+        {
+          title: "Reserva San Valentín - Botánico (turno único 21:00)",
+          quantity: 1,
+          currency_id: "ARS",
+          unit_price: amount
+        }
+      ],
+      back_urls: {
+        success: `${BASE_URL}/resultado.html`,
+        pending: `${BASE_URL}/resultado.html`,
+        failure: `${BASE_URL}/resultado.html`
+      },
+      auto_return: "approved",
+      external_reference: externalRef,
+      metadata: {
+        external_reference: externalRef,
+        fullName: String(fullName).trim(),
+        email: String(email).trim(),
+        phone: String(phone).trim(),
+        adults: a,
+        kids: k,
+        total_people: totalPeople,
+        price_per_person: PRICE_PER_PERSON,
+        event: "san_valentin",
+        shift: "21:00"
+      }
+    };
 
     const resp = await axios.post(
       "https://api.mercadopago.com/checkout/preferences",
@@ -168,43 +227,13 @@ app.post("/api/create-preference", async (req, res) => {
   }
 });
 
-// Email (Resend - recomendado para Railway)
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-async function sendEmails({
-  customerEmail,
-  restaurantEmail,
-  subjectCustomer,
-  htmlCustomer,
-  subjectRestaurant,
-  htmlRestaurant
-}) {
-  const fromName = process.env.MAIL_FROM_NAME || "Botánico";
-  const fromEmail = process.env.MAIL_FROM_EMAIL || "onboarding@resend.dev";
-  const from = `${fromName} <${fromEmail}>`;
-
-  // Cliente
-  await resend.emails.send({
-    from,
-    to: [customerEmail],
-    subject: subjectCustomer,
-    html: htmlCustomer
-  });
-
-  // Restaurante
-  await resend.emails.send({
-    from,
-    to: [restaurantEmail],
-    subject: subjectRestaurant,
-    html: htmlRestaurant
-  });
-}
-
-// Confirm payment + email
+// ---------- Confirm payment + send emails ----------
 app.get("/api/confirm", async (req, res) => {
   try {
     const paymentId = req.query.payment_id;
     if (!paymentId) return res.status(400).json({ error: "payment_id faltante" });
+
+    console.log("CONFIRM HIT payment_id:", paymentId);
 
     const payResp = await axios.get(
       `https://api.mercadopago.com/v1/payments/${paymentId}`,
@@ -212,7 +241,7 @@ app.get("/api/confirm", async (req, res) => {
     );
 
     const payment = payResp.data;
-    const status = payment.status;
+    const status = (payment.status || "").toLowerCase();
     const externalRef = payment.external_reference || payment.metadata?.external_reference;
 
     if (!externalRef) {
@@ -221,10 +250,9 @@ app.get("/api/confirm", async (req, res) => {
 
     const db = loadDb();
     const r = db.reservas.find((x) => x.external_reference === externalRef);
-
     if (!r) return res.status(404).json({ error: "Reserva no encontrada." });
 
-    // Si ya estaba aprobada, no duplicamos ni mails ni cupo
+    // Ya aprobada: no duplicamos
     if (r.status === "approved") {
       return res.json({ ok: true, status: "approved", message: "Reserva ya confirmada." });
     }
@@ -258,8 +286,7 @@ app.get("/api/confirm", async (req, res) => {
           <p style="margin:0 0 6px;">Nombre: ${r.fullName}</p>
           <p style="margin:0 0 6px;">Comensales: ${r.total_people} (Adultos ${r.adults} · Niños ${r.kids})</p>
           <p style="margin:0 0 6px;">Turno: 21:00</p>
-          <p style="margin:0 0 16px;">Tolerancia máxima: 15 minutos</p>
-          <p style="margin:0;">Gracias.</p>
+          <p style="margin:0;">Tolerancia máxima: 15 minutos</p>
         </div>
       `;
 
@@ -289,7 +316,6 @@ app.get("/api/confirm", async (req, res) => {
       return res.json({ ok: true, status: "approved" });
     }
 
-    // pending / rejected / etc.
     saveDb(db);
     return res.json({ ok: true, status });
   } catch (err) {
@@ -301,8 +327,19 @@ app.get("/api/confirm", async (req, res) => {
     });
   }
 });
+app.get("/api/test-email", async (req, res) => {
+  try {
+    console.log("TEST EMAIL HIT");
 
+    res.json({
+      ok: true,
+      message: "La ruta /api/test-email EXISTE y está funcionando"
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
 
-// Start
+// ---------- Start ----------
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Servidor OK: http://localhost:${port}`));
