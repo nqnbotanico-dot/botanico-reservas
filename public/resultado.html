@@ -3,92 +3,184 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Botánico — Confirmación</title>
-  <link rel="stylesheet" href="./css/styles1.css" />
+  <title>Botánico — Reserva confirmada</title>
+
+  <!-- Tipografías elegantes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --card: #17171c;
+      --text: #eaeaf0;
+      --muted: #b5b5c0;
+      --accent: #cfa56a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Inter", sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      background: var(--card);
+      max-width: 480px;
+      width: 92%;
+      padding: 32px 28px;
+      border-radius: 14px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    }
+
+    .brand {
+      font-family: "Playfair Display", serif;
+      font-size: 28px;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 28px;
+    }
+
+    .status {
+      font-family: "Playfair Display", serif;
+      font-size: 22px;
+      margin-bottom: 12px;
+    }
+
+    .desc {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 26px;
+    }
+
+    .details {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 26px;
+    }
+
+    .details div {
+      margin-bottom: 6px;
+    }
+
+    .btn {
+      display: inline-block;
+      text-decoration: none;
+      padding: 14px 22px;
+      border-radius: 999px;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: all .25s ease;
+    }
+
+    .btn-wa {
+      background: var(--accent);
+      color: #0f0f12;
+    }
+
+    .btn-wa:hover {
+      transform: translateY(-1px);
+      opacity: .9;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
 </head>
+<body>
 
-<body class="bg-soft">
-  <aside class="brand-rail">
-    <a class="brand-back" href="./index1.html">←</a>
-    <img class="brand-logo" src="./assets/logo-botanico.jpg" alt="Botánico" />
-  </aside>
+  <div class="card">
+    <div class="brand">BOTÁNICO</div>
+    <div class="subtitle">San Valentín · Turno único 21:00</div>
 
-  <main class="shell">
-    <section class="card status-card">
-      <div class="card-head">
-        <h1 class="title" id="statusTitle" style="margin-top:0;">Confirmación</h1>
-        <p class="subtitle" id="statusText">Procesando…</p>
+    <div id="statusTitle" class="status">Procesando reserva…</div>
+    <div id="statusDesc" class="desc">
+      Estamos verificando el estado de tu pago.
+    </div>
+
+    <div id="details" class="details hidden">
+      <div id="dName"></div>
+      <div id="dPeople"></div>
+      <div>Tolerancia máxima: 15 minutos</div>
+    </div>
+
+    <div id="waWrap" class="hidden">
+      <a id="waBtn" class="btn btn-wa" href="#" target="_blank" rel="noopener">
+        Confirmar por WhatsApp
+      </a>
+      <div class="hint">
+        Se abrirá WhatsApp con el mensaje listo para enviar.
       </div>
-
-      <div style="padding: 0 22px 22px;">
-        <a class="btn btn-ghost" href="./index1.html">Volver al inicio</a>
-      </div>
-    </section>
-
-    <footer class="footer">
-      <span>© Botánico</span><span class="dot">•</span><span>San Valentín</span>
-    </footer>
-  </main>
+    </div>
+  </div>
 
   <script>
     const qs = new URLSearchParams(location.search);
+    const status = (qs.get("status") || qs.get("collection_status") || "").toLowerCase();
+    const external = qs.get("external_reference") || "";
 
-    // MP puede mandar status en diferentes nombres
-    const status =
-      (qs.get("status") || qs.get("collection_status") || "").toLowerCase();
+    const fullName = localStorage.getItem("bot_fullName") || "";
+    const adults = Number(localStorage.getItem("bot_adults") || 0);
+    const kids = Number(localStorage.getItem("bot_kids") || 0);
+    const total = adults + kids;
 
-    const paymentId = qs.get("payment_id") || qs.get("collection_id");
-    const title = document.getElementById("statusTitle");
-    const text = document.getElementById("statusText");
+    const statusTitle = document.getElementById("statusTitle");
+    const statusDesc = document.getElementById("statusDesc");
+    const details = document.getElementById("details");
 
-    function setApproved() {
-      title.textContent = "Reserva confirmada";
-      text.textContent = "Pago aprobado. La confirmación fue enviada por correo.";
+    if (status === "approved") {
+      statusTitle.textContent = "Reserva confirmada";
+      statusDesc.textContent =
+        "Tu lugar para la noche de San Valentín ha sido reservado correctamente.";
+
+      document.getElementById("dName").textContent =
+        fullName ? `Nombre: ${fullName}` : "";
+      document.getElementById("dPeople").textContent =
+        total ? `Comensales: ${total} (Adultos ${adults} · Niños ${kids})` : "";
+
+      details.classList.remove("hidden");
+
+      fetch(`/api/whatsapp-link?fullName=${encodeURIComponent(fullName)}&adults=${adults}&kids=${kids}&total=${total}&external_reference=${encodeURIComponent(external)}`)
+        .then(r => r.json())
+        .then(j => {
+          if (j.ok && j.url) {
+            document.getElementById("waBtn").href = j.url;
+            document.getElementById("waWrap").classList.remove("hidden");
+          }
+        });
+    } else if (status === "pending") {
+      statusTitle.textContent = "Pago pendiente";
+      statusDesc.textContent =
+        "Tu pago está siendo procesado. En cuanto se confirme, tu reserva quedará registrada.";
+    } else {
+      statusTitle.textContent = "No se pudo completar el pago";
+      statusDesc.textContent =
+        "El pago no fue aprobado. Podés intentar nuevamente o contactarnos.";
     }
-    function setPending() {
-      title.textContent = "Pago pendiente";
-      text.textContent = "Tu pago quedó pendiente. Apenas se acredite, se confirmará la reserva.";
-    }
-    function setFailure() {
-      title.textContent = "Pago rechazado / cancelado";
-      text.textContent = "No se pudo confirmar el pago. Podés intentar nuevamente desde la página de reserva.";
-    }
-    function setVerifying() {
-      title.textContent = "Reserva en verificación";
-      text.textContent = "Estamos confirmando el pago. Si no recibís el correo, contactanos.";
-    }
-
-    async function confirmWithServer() {
-      if (!paymentId) return null;
-
-      // Dispara el envío de mails cuando el pago está approved
-      const r = await fetch(`/api/confirm?payment_id=${encodeURIComponent(paymentId)}`);
-      return await r.json();
-    }
-
-    (async () => {
-      // Primero, mostramos algo coherente SOLO con la URL (para UX)
-      if (status === "approved") setApproved();
-      else if (status === "pending" || status === "in_process") setPending();
-      else if (status) setFailure();
-      else setVerifying();
-
-      // Segundo: confirmamos con el server (para mails y verdad final)
-      try {
-        const data = await confirmWithServer();
-        if (!data) return;
-
-        const finalStatus = (data.status || status || "").toLowerCase();
-
-        if (finalStatus === "approved") setApproved();
-        else if (finalStatus === "pending" || finalStatus === "in_process") setPending();
-        else setFailure();
-      } catch (e) {
-        // Si falla el server, NO mostramos cancelado si MP dice approved
-        if (status === "approved") setApproved();
-        else setVerifying();
-      }
-    })();
   </script>
+
 </body>
 </html>
