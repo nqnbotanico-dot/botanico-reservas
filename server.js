@@ -338,6 +338,32 @@ app.get("/api/whatsapp-link", (req, res) => {
 
   res.json({ ok: true, url });
 });
+app.get("/api/reserva", (req, res) => {
+  try {
+    const externalRef = String(req.query.external_reference || "").trim();
+    if (!externalRef) return res.status(400).json({ ok: false, error: "Falta external_reference" });
+
+    const db = loadDb();
+    const r = db.reservas.find(x => x.external_reference === externalRef);
+
+    if (!r) return res.status(404).json({ ok: false, error: "Reserva no encontrada" });
+
+    return res.json({
+      ok: true,
+      reserva: {
+        fullName: r.fullName,
+        adults: r.adults,
+        kids: r.kids,
+        total_people: r.total_people,
+        amount: r.amount,
+        status: r.status
+      }
+    });
+  } catch (err) {
+    console.error("API RESERVA ERROR:", err.message);
+    return res.status(500).json({ ok: false, error: "Error leyendo reserva" });
+  }
+});
 
 // ---------- Start ----------
 const port = process.env.PORT || 3000;
