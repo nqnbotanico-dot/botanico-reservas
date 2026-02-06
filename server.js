@@ -48,6 +48,9 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index1.html"));
 });
 
+// ---------- Ping ----------
+app.get("/ping", (req, res) => res.send("pong"));
+
 // ---------- Availability ----------
 app.get("/api/availability", (req, res) => {
   const db = loadDb();
@@ -70,54 +73,72 @@ async function sendEmails({
   const fromEmail = process.env.MAIL_FROM_EMAIL || "onboarding@resend.dev";
   const from = `${fromName} <${fromEmail}>`;
 
-  // Cliente
-  await resend.emails.send({
+  const customerResult = await resend.emails.send({
     from,
     to: [customerEmail],
     subject: subjectCustomer,
-    html: htmlCustomer
+    html: htmlCustomer,
+    reply_to: restaurantEmail
   });
 
-  // Restaurante
-  await resend.emails.send({
+  const restaurantResult = await resend.emails.send({
     from,
     to: [restaurantEmail],
     subject: subjectRestaurant,
-    html: htmlRestaurant
+    html: htmlRestaurant,
+    reply_to: restaurantEmail
   });
+
+  return { customerResult, restaurantResult };
 }
 
-// Endpoint para probar mails sin pagar
+
+
+/**
+ * TEST EMAIL (SIN PAGAR)
+ * Obligatorio pasar ?to= para evitar confusión.
+ * Ejemplo:
+ * /api/test-email?to=tu_mail@gmail.com
+ */
 app.get("/api/test-email", async (req, res) => {
   try {
-    console.log("TEST EMAIL: start");
+    const to = String(req.query.to || "").trim();
+    const restaurantEmail = String(process.env.RESTAURANT_EMAIL || "").trim();
 
-    const to = req.query.to || process.env.RESTAURANT_EMAIL;
-    const restaurantEmail = process.env.RESTAURANT_EMAIL;
+    if (!process.env.RESEND_API_KEY) {
+      return res.status(500).json({ ok: false, error: "Falta RESEND_API_KEY en Railway" });
+    }
+    if (!to) {
+      return res.status(400).json({
+        ok: false,
+        error: "Falta el parámetro ?to=",
+        example: "/api/test-email?to=tu_mail@gmail.com"
+      });
+    }
+    if (!restaurantEmail) {
+      return res.status(500).json({ ok: false, error: "Falta RESTAURANT_EMAIL en Railway" });
+    }
 
-    if (!to) return res.status(400).json({ ok: false, error: "Falta ?to= o RESTAURANT_EMAIL" });
-    if (!restaurantEmail) return res.status(400).json({ ok: false, error: "Falta RESTAURANT_EMAIL" });
-
-    await sendEmails({
+    const result = await sendEmails({
       customerEmail: to,
       restaurantEmail,
       subjectCustomer: "Botánico · Test email cliente",
-      htmlCustomer: "<p>Email de prueba enviado correctamente.</p>",
+      htmlCustomer: `<p>Test cliente enviado a: <b>${to}</b></p>`,
       subjectRestaurant: "Botánico · Test email restaurante",
-      htmlRestaurant: "<p>Email de prueba enviado correctamente.</p>"
+      htmlRestaurant: `<p>Test restaurante enviado a: <b>${restaurantEmail}</b></p>`
     });
 
-    console.log("TEST EMAIL: sent OK");
-    res.json({ ok: true, sent_to: to, restaurant: restaurantEmail });
+    return res.json({ ok: true, sent_to: to, restaurant: restaurantEmail, result });
   } catch (err) {
     console.error("TEST EMAIL ERROR:", err?.response?.data || err.message);
-    res.status(500).json({
+    return res.status(500).json({
       ok: false,
       error: err.message,
       details: err?.response?.data || null
     });
   }
 });
+
 
 // ---------- Mercado Pago: create preference ----------
 app.post("/api/create-preference", async (req, res) => {
@@ -277,7 +298,10 @@ app.get("/api/confirm", async (req, res) => {
       r.approved_at = new Date().toISOString();
       saveDb(db);
 
-      const restaurantEmail = process.env.RESTAURANT_EMAIL;
+      const restaurantEmail = String(process.env.RESTAURANT_EMAIL || "").trim();
+      if (!restaurantEmail) {
+        return res.status(500).json({ ok: false, error: "Falta RESTAURANT_EMAIL en Railway" });
+      }
 
       const htmlCustomer = `
         <div style="font-family:Arial,sans-serif; line-height:1.7; color:#111;">
@@ -302,16 +326,14 @@ app.get("/api/confirm", async (req, res) => {
         </div>
       `;
 
-      if (restaurantEmail) {
-        await sendEmails({
-          customerEmail: r.email,
-          restaurantEmail,
-          subjectCustomer: "Botánico · Reserva confirmada (San Valentín)",
-          htmlCustomer,
-          subjectRestaurant: "Botánico · Reserva confirmada",
-          htmlRestaurant
-        });
-      }
+      await sendEmails({
+        customerEmail: r.email,          // <- email del cliente (del formulario)
+        restaurantEmail,                // <- email del restaurante (variable)
+        subjectCustomer: "Botánico · Reserva confirmada (San Valentín)",
+        htmlCustomer,
+        subjectRestaurant: "Botánico · Reserva confirmada",
+        htmlRestaurant
+      });
 
       return res.json({ ok: true, status: "approved" });
     }
@@ -327,36 +349,6 @@ app.get("/api/confirm", async (req, res) => {
     });
   }
 });
-app.get("/api/test-email", async (req, res) => {
-  try {
-    console.log("TEST EMAIL HIT");
-
-    res.json({
-      ok: true,
-      message: "La ruta /api/test-email EXISTE y está funcionando"
-    });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-function printRoutes(app) {
-  const routes = [];
-  const stack = app?._router?.stack || app?.router?.stack || [];
-  for (const layer of stack) {
-    if (layer?.route?.path) {
-      const methods = Object.keys(layer.route.methods || {})
-        .map(m => m.toUpperCase())
-        .join(",");
-      routes.push(`${methods} ${layer.route.path}`);
-    }
-  }
-  console.log("ROUTES:", routes);
-}
-app.get("/ping", (req, res) => res.send("pong"));
-
-// ✅ dejalo justo antes del listen
-printRoutes(app);
-
 
 // ---------- Start ----------
 const port = process.env.PORT || 3000;
