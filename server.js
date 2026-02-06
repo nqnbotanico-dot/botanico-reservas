@@ -4,7 +4,8 @@ import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
+
 
 dotenv.config();
 
@@ -58,8 +59,19 @@ app.get("/api/availability", (req, res) => {
   res.json({ remaining, max: MAX_RESERVAS });
 });
 
-// ---------- Email (Resend) ----------
-const resend = new Resend(process.env.RESEND_API_KEY);
+import nodemailer from "nodemailer";
+
+function mailer() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  });
+}
 
 async function sendEmails({
   customerEmail,
@@ -69,29 +81,27 @@ async function sendEmails({
   subjectRestaurant,
   htmlRestaurant
 }) {
+  const tx = mailer();
   const fromName = process.env.MAIL_FROM_NAME || "Botánico";
-  const fromEmail = process.env.MAIL_FROM_EMAIL || "onboarding@resend.dev";
-  const from = `${fromName} <${fromEmail}>`;
+  const fromEmail = process.env.MAIL_FROM_EMAIL || process.env.SMTP_USER;
+  const from = `"${fromName}" <${fromEmail}>`;
 
-  const customerResult = await resend.emails.send({
+  // Cliente
+  await tx.sendMail({
     from,
-    to: [customerEmail],
+    to: customerEmail,
     subject: subjectCustomer,
-    html: htmlCustomer,
-    reply_to: restaurantEmail
+    html: htmlCustomer
   });
 
-  const restaurantResult = await resend.emails.send({
+  // Restaurante
+  await tx.sendMail({
     from,
-    to: [restaurantEmail],
+    to: restaurantEmail,
     subject: subjectRestaurant,
-    html: htmlRestaurant,
-    reply_to: restaurantEmail
+    html: htmlRestaurant
   });
-
-  return { customerResult, restaurantResult };
 }
-
 
 
 /**
