@@ -12,6 +12,7 @@
     "axios": "^1.13.4",
     "dotenv": "^17.2.3",
     "express": "^4.22.1",
-    "nodemailer": "^8.0.0"
+    "nodemailer": "^8.0.0",
+    "resend": "^6.9.1"
   }
 }

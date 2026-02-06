@@ -5,6 +5,8 @@ import fs from "fs";
 import nodemailer from "nodemailer";
 import path from "path";
 import { fileURLToPath } from "url";
+import { Resend } from "resend";
+
 
 dotenv.config();
 
@@ -19,6 +21,7 @@ app.use(express.json());
 const PRICE_PER_PERSON = Number(process.env.PRICE_PER_PERSON || 1); // para test: $1
 const MAX_RESERVAS = Number(process.env.MAX_RESERVAS || 30);
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
+
 
 // DB (JSON)
 const DATA_DIR = path.join(__dirname, "data");
@@ -165,34 +168,33 @@ app.post("/api/create-preference", async (req, res) => {
   }
 });
 
-// Mail
-function mailer() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    }
-  });
-}
+// Email (Resend - recomendado para Railway)
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-async function sendEmails({ customerEmail, restaurantEmail, subjectCustomer, htmlCustomer, subjectRestaurant, htmlRestaurant }) {
-  const tx = mailer();
+async function sendEmails({
+  customerEmail,
+  restaurantEmail,
+  subjectCustomer,
+  htmlCustomer,
+  subjectRestaurant,
+  htmlRestaurant
+}) {
   const fromName = process.env.MAIL_FROM_NAME || "Botánico";
-  const fromEmail = process.env.MAIL_FROM_EMAIL || process.env.SMTP_USER;
+  const fromEmail = process.env.MAIL_FROM_EMAIL || "onboarding@resend.dev";
+  const from = `${fromName} <${fromEmail}>`;
 
-  await tx.sendMail({
-    from: `"${fromName}" <${fromEmail}>`,
-    to: customerEmail,
+  // Cliente
+  await resend.emails.send({
+    from,
+    to: [customerEmail],
     subject: subjectCustomer,
     html: htmlCustomer
   });
 
-  await tx.sendMail({
-    from: `"${fromName}" <${fromEmail}>`,
-    to: restaurantEmail,
+  // Restaurante
+  await resend.emails.send({
+    from,
+    to: [restaurantEmail],
     subject: subjectRestaurant,
     html: htmlRestaurant
   });
@@ -213,13 +215,16 @@ app.get("/api/confirm", async (req, res) => {
     const status = payment.status;
     const externalRef = payment.external_reference || payment.metadata?.external_reference;
 
-    if (!externalRef) return res.status(400).json({ error: "No se encontró external_reference en el pago." });
+    if (!externalRef) {
+      return res.status(400).json({ error: "No se encontró external_reference en el pago." });
+    }
 
     const db = loadDb();
     const r = db.reservas.find((x) => x.external_reference === externalRef);
+
     if (!r) return res.status(404).json({ error: "Reserva no encontrada." });
 
-    // ya aprobada
+    // Si ya estaba aprobada, no duplicamos ni mails ni cupo
     if (r.status === "approved") {
       return res.json({ ok: true, status: "approved", message: "Reserva ya confirmada." });
     }
@@ -228,7 +233,7 @@ app.get("/api/confirm", async (req, res) => {
     r.mp_status = status;
 
     if (status === "approved") {
-      // control final cupo
+      // Control final cupo
       const remaining = Math.max(0, MAX_RESERVAS - confirmedCount(db));
       if (remaining <= 0) {
         r.status = "rejected_full";
@@ -246,7 +251,6 @@ app.get("/api/confirm", async (req, res) => {
 
       const restaurantEmail = process.env.RESTAURANT_EMAIL;
 
-      // mails simples y prolijos
       const htmlCustomer = `
         <div style="font-family:Arial,sans-serif; line-height:1.7; color:#111;">
           <h2 style="margin:0 0 10px;">Reserva confirmada</h2>
@@ -285,14 +289,19 @@ app.get("/api/confirm", async (req, res) => {
       return res.json({ ok: true, status: "approved" });
     }
 
+    // pending / rejected / etc.
     saveDb(db);
     return res.json({ ok: true, status });
   } catch (err) {
     const mpError = err?.response?.data;
     console.error("Confirm error:", mpError || err.message);
-    return res.status(500).json({ error: "No se pudo confirmar el pago.", detail: mpError || err.message });
+    return res.status(500).json({
+      error: "No se pudo confirmar el pago.",
+      detail: mpError || err.message
+    });
   }
 });
+
 
 // Start
 const port = process.env.PORT || 3000;
