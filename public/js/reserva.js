@@ -1,4 +1,4 @@
-const PRICE_PER_PERSON = 1; // test
+const PRICE_PER_PERSON = 30000; // test
 
 const form = document.getElementById("reserveForm");
 const payBtn = document.getElementById("payBtn");
