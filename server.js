@@ -10,6 +10,7 @@ import nodemailer from "nodemailer";
 dotenv.config();
 
 // __dirname / __filename (ESM)
+const SOLD_OUT = String(process.env.SOLD_OUT || "false").toLowerCase() === "true";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -46,8 +47,10 @@ function confirmedCount(db) {
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index1.html"));
+  if (SOLD_OUT) return res.sendFile(path.join(__dirname, "public", "completo.html"));
+  return res.sendFile(path.join(__dirname, "public", "index1.html"));
 });
+
 
 // ---------- Ping ----------
 app.get("/ping", (req, res) => res.send("pong"));
@@ -106,6 +109,13 @@ async function sendEmails({
 // ---------- Mercado Pago: create preference ----------
 app.post("/api/create-preference", async (req, res) => {
   try {
+    if (SOLD_OUT) {
+  return res.status(409).json({
+    error: "Reservas completas",
+    message: "Esta edición de San Valentín ya se encuentra completa. Gracias por tu interés."
+  });
+}
+
     const { adults, kids, fullName, email, phone } = req.body;
 
     const a = Number(adults);
